@@ -1,0 +1,96 @@
+template:
+  - sensor:
+      - name: "Current Electricity Price"
+        unit_of_measurement: "EUR/kWh"
+        icon: "mdi:currency-eur"
+        state_class: "measurement"
+        device_class: "monetary"
+        unique_id: "current_electricity_price"
+        state: >
+          {% set season = states('sensor.current_season') %}
+          {% set block = states('sensor.current_tariff_block') | int %}
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set energija_vt = 0.118000 * 0.9 + 0.162900 * 0.1 %}
+          {% set energija_mt = 0.082000 * 0.9 + 0.144900 * 0.1 %}
+
+          {% if block == 1 %} 
+              {% set omreznina = 0.00663 + 0.01295 %}
+              {% set energija = energija_vt %}
+          {% elif block == 2 %}
+              {% set omreznina = 0.00620 + 0.01224 %}
+              {% set energija = energija_vt %}
+          {% elif block == 3 %}
+              {% set omreznina = 0.00589 + 0.01248 %}
+              {% if season == 'High' %}
+                {% if is_workday %}
+                  {% set energija = energija_mt %}
+                {% else %}
+                  {% set energija = energija_vt %}
+                {% endif %}
+              {% else %}
+                {% set energija = energija_vt %}
+              {% endif %}
+          {% elif block == 4 %}
+              {% set omreznina = 0.00592 + 0.01246 %}
+              {% if season == 'High' %}
+                {% set energija = energija_mt %}
+              {% else %}
+                {% if is_workday %}
+                  {% set energija = energija_mt %}
+                {% else %}
+                  {% set energija = energija_vt %}
+                {% endif %}
+              {% endif %}
+          {% elif block == 5 %}
+              {% set omreznina = 0.00589 + 0.01258 %}
+              {% set energija = energija_mt %}
+          {% else %}
+            {% set omreznina = 0 %}
+            {% set energija = 0 %}
+          {% endif %}
+
+          {{ (energija + omreznina + 0.000130 + 0.000800 + 0.001530) * 1.22  | float(6) }}
+sensor:
+  - platform: template
+    sensors:
+      current_season:
+        friendly_name: "Current Season"
+        value_template: >
+          {% set month = now().month %}
+          {% if month in [11, 12, 1, 2] %}
+            High
+          {% else %}
+            Low
+          {% endif %}
+      current_tariff_block:
+        friendly_name: "Current Tariff Block"
+        value_template: >
+          {% set hour = now().hour %}
+          {% set season = states('sensor.current_season') %}
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+
+          {% if 0 <= hour < 6 %}
+            {% set block = 3 %}
+          {% elif hour == 6  %}
+            {% set block = 2 %}
+          {% elif 6 <= hour < 14 %}
+            {% set block = 1 %}
+          {% elif 14 <= hour < 16 %}
+            {% set block = 2 %}
+          {% elif 16 <= hour < 20 %}
+            {% set block = 1 %}
+          {% elif 20 <= hour < 22 %}
+            {% set block = 2 %}
+          {% else %}
+            {% set block = 3 %}
+          {% endif %}
+
+          {% if season == 'Low' %}
+            {% set block = block + 1 %}
+          {% endif %}
+
+          {% if not is_workday %}
+            {% set block = block + 1 %}
+          {% endif %}
+
+          {{ block }}
