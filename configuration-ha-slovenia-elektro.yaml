@@ -10,8 +10,8 @@ template:
           {% set season = states('sensor.current_season') %}
           {% set block = states('sensor.current_tariff_block') | int %}
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
-          {% set energija_vt = 0.118000 * 0.9 + 0.162900 * 0.1 %}
-          {% set energija_mt = 0.082000 * 0.9 + 0.144900 * 0.1 %}
+          {% set energija_vt = 0.084 %}
+          {% set energija_mt = 0.070 %}
 
           {% if block == 1 %} 
               {% set omreznina = 0.00663 + 0.01295 %}
